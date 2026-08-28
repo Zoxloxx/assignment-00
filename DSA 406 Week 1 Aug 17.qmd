@@ -1,0 +1,261 @@
+---
+title: "Assignment 00"
+author: "Charanjit Dhanasekar"
+date: today
+date-format: "MMMM D, YYYY"
+
+format: pdf
+
+editor: source
+
+execute:
+  output: true
+---
+
+# Assignment 00
+
+## Due: See Date in Moodle
+
+## Guidelines
+
+- Follow good programming practices by using descriptive variable names, maintaining appropriate spacing for readability, and adding comments to clarify your code.
+
+- Ensure written responses use third-person, correct spelling, complete sentences, and proper grammar.
+
+**Name: Charanjit Dhanasekar**
+
+**Section: 001**
+
+**Date: 08/26/2026**
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this:
+
+``` r
+{r} 
+#| echo: false 
+2*2
+```
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+You can label code chunks like this:
+
+```{r}
+#| label: load-packages
+#| message: false
+#| warning: false
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+```
+
+``` r
+{r}
+#| label: load-packages
+#| message: false
+#| warning: false
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+```
+
+The `message: false` and `warning: false` options hide messages and warnings from the rendered output.
+
+## Loading Data
+
+```{r}
+#| label: load-data-ms2022
+#| warning: false
+
+ms2022 <- read_excel("data/DSA 406 Annual Data 2022.xlsx")
+ms2022 <- ms2022 |>
+  filter(!is.na(restaurant))
+
+glimpse(ms2022)
+```
+
+[MenuStat](https://www.menustat.org/faq.html) is a free nutrition database that aggregates menu and nutrition information from major U.S. chain restaurants, allowing users to compare food items across restaurants and analyze changes in nutritional content over time.
+
+To learn more about the dataset and its variables, review the [Menu Stat Datasheet](https://docs.google.com/document/d/1rDKTth3tAOar71xh-GWEhU4mRa9A7aF8_CdiNyqFWdo/edit?tab=t.bxwvivhu4jol).
+
+```{r}
+#| label: view-head
+
+head(ms2022)
+```
+
+**Question 1.** Find the 10 restaurants with the fewest menu items in the dataset.
+
+```{r}
+#| label: menu-items
+
+# Count how many menu items each restaurant has, sort from most
+# to fewest, then keep the last 10 rows (the 10 restaurants with
+# the fewest menu items).
+restaurants <- ms2022 |>
+  count(restaurant) |>
+  arrange(desc(n)) |>
+  tail(10)
+
+restaurants
+```
+
+**Question 2.** Compute summary statistics for the `calories` variable.
+
+```{r}
+#| label: cal-summary
+
+# Basic summary statistics (min, quartiles, mean, max) for calories
+summary(ms2022$calories)
+```
+
+**Question 3.** Create a histogram showing the distribution of calories for all menu items across restaurants. Mark the maximum calorie value on the histogram.
+
+```{r}
+#| label: cal-distribution
+#| fig-cap: "Calorie distribution of all menu items across restaurants."
+#| message: false
+#| warning: false
+
+# Find the highest calorie value, and create histogram
+max_calories <- max(ms2022$calories, na.rm = TRUE)
+
+ggplot(ms2022, aes(x = calories)) +
+  geom_histogram() +
+  geom_point(aes(x = max_calories, y = 0), color = "red") +
+  labs(x = "Calories", y = "Frequency") +
+  theme_classic()
+```
+
+**Question 4.** Find the menu item with the highest number of calories.
+
+```{r}
+#| label: highest-cal-item
+
+
+ms2022 |>
+  filter(calories == max(calories, na.rm = TRUE)) |>
+  select(restaurant, item_name, item_description, calories)
+```
+
+**Question 5.** Find the highest-calorie menu item for each restaurant identified in **Question 1**.
+
+```{r}
+#| label: highest-cal-item-restaurant
+
+highest_cal_restaurant <- ms2022 |>
+  filter(restaurant %in% restaurants$restaurant) |>
+  group_by(restaurant) |>
+  slice_max(calories, n = 1) |>
+  select(restaurant, item_name, calories) |>
+  arrange(desc(calories))
+
+highest_cal_restaurant
+```
+
+**Question 6.** Create a bar chart showing the highest-calorie menu item for each restaurant identified in **Question 1**.
+
+```{r}
+#| label: fig-highest-cal-restaurant
+#| fig-cap: "Highest-calorie menu item for selected restaurants."
+
+
+
+ggplot(highest_cal_restaurant, aes(x = reorder(restaurant, calories), y = calories)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "", y = "Calories") +
+  theme_classic()
+```
+
+**Question 7.** Create a boxplot showing the calorie distribution for menu items from the top five restaurants identified in **Question 1**.
+
+```{r}
+#| label: fig-cal-dist-restaurant
+#| fig-cap: "Calorie distribution of menu items for selected restaurants."
+#| message: false
+#| warning: false
+
+ms2022 |>
+  filter(restaurant %in% restaurants$restaurant[1:5]) |>
+  ggplot(aes(x = restaurant, y = calories)) +
+  geom_boxplot() +
+  labs(x = "", y = "Calories") +
+  theme_classic()
+```
+
+**Question 8.** Identify and inspect invalid or non-numeric values in the `sodium` variable.
+
+```{r}
+#| label: err-sodium
+
+err_sodium <- ms2022 |>
+  filter(!grepl("^-?\\d*\\.?\\d+$", sodium))
+
+unique(err_sodium$sodium)
+table(err_sodium$sodium, useNA = "ifany")
+```
+
+**Question 9.** Clean and summarize the `sodium` variable by keeping only numeric values.
+
+```{r}
+#| label: clean-sodium
+
+clean_sodium <- ms2022 |>
+  filter(grepl("^-?\\d*\\.?\\d+$", sodium)) |>
+  pull(sodium) |>
+  as.numeric()
+
+summary(clean_sodium)
+```
+
+**Question 10.** Clean and summarize the `sodium` variable by keeping only numeric values. Then create a boxplot showing the calorie distribution for menu items from the top five restaurants identified in **Question 1**.
+
+```{r}
+#| label: fig-sodium-dist-restaurant
+#| fig-cap: "Sodium distribution of menu items for selected restaurants."
+#| message: false
+#| warning: false
+
+ms2022 |>
+  filter(grepl("^-?\\d*\\.?\\d+$", sodium), 
+         restaurant %in% restaurants$restaurant[1:5]) |>
+  mutate(clean_sodium_col = as.numeric(sodium)) |>
+  ggplot(aes(x = restaurant, y = clean_sodium_col)) +
+  geom_boxplot() + 
+  labs(x = "", y = "Sodium") +
+  theme_classic()
+```
+
+## Submission
+
+Make sure that all cells in your assignment have been executed to display all output, images, and graphs in the final document.
+
+**Note:** Save the assignment before proceeding to render the file into a `.pdf` document.
+
+Once the rendering process is complete, locate the resulting `.pdf` document and upload **only** this file to Moodle. The assignment will be automatically submitted to Gradescope for grading.
+
+If you have any questions, please post them on the Moodle discussion board dedicated to this assignment.
+
+## Grading Rubric
+
+This programming assignment is worth **15 points:** 10 points for the questions, 4 points for submission compliance, and 1 point for timeliness. See the [***Grading Rubric Guideline***](https://docs.google.com/document/d/1AGoRE8PUsoxymhQINl-CKq6Az8qrtmjuaIrECI9L9cc/edit?tab=t.4ppret8tjok6#heading=h.vp3wyz882cub) for details on marking tags and point values.
